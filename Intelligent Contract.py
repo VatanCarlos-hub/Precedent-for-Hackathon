@@ -159,7 +159,7 @@ class Precedent(gl.contract.Contract):
         # This does not yet make each party sign their own argument, but it
         # removes anonymous filing: every case is attributable to a signer.
         try:
-            filed_by = gl.message.sender_address.as_hex
+            filed_by = str(gl.message.sender_address)
         except Exception:
             filed_by = ""
 
