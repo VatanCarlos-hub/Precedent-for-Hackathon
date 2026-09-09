@@ -82,7 +82,7 @@ class Precedent(gl.contract.Contract):
     #
     # Storage:
     #   cases : case_id (str) -> JSON string of the full case record
-    #   index : JSON string {"count": n, "ids": [...], "sums": {id: summary}}
+    #   index : JSON string {"count": n, "ids": [...]}
     cases: gl.storage.TreeMap[str, str]
     index: str
 
@@ -96,24 +96,34 @@ class Precedent(gl.contract.Contract):
                 if isinstance(obj, dict):
                     if "ids" not in obj:
                         obj["ids"] = []
-                    if "sums" not in obj:
-                        obj["sums"] = {}
                     if "count" not in obj:
                         obj["count"] = 0
                     return obj
         except Exception:
             pass
-        return {"count": 0, "ids": [], "sums": {}}
+        return {"count": 0, "ids": []}
 
     def _find_precedent(self, summary: str, idx: dict) -> str:
-        """Return the case_id of the most similar prior case, or '' if none."""
+        """Return the case_id of the most similar prior case, or '' if none.
+
+        Summaries are read from the single source of truth (cases), not
+        duplicated in the index, so there is only one place a summary lives.
+        """
         kw_new = _keywords(summary)
         best_id = ""
         best_score = 0.0
-        sums = idx.get("sums", {})
-        if not isinstance(sums, dict):
+        ids = idx.get("ids", [])
+        if not isinstance(ids, list):
             return ""
-        for cid, csum in sums.items():
+        for cid in ids:
+            try:
+                raw = self.cases[cid]
+                if not raw:
+                    continue
+                rec = json.loads(raw)
+                csum = str(rec.get("summary", ""))
+            except Exception:
+                continue
             score = _similarity(kw_new, _keywords(csum))
             if score > best_score:
                 best_score = score
@@ -144,6 +154,14 @@ class Precedent(gl.contract.Contract):
         year_l = _norm(year)
         if len(year_l) != 4 or not year_l.isdigit():
             year_l = "0000"
+
+        # Record who actually submitted this filing (on-chain identity).
+        # This does not yet make each party sign their own argument, but it
+        # removes anonymous filing: every case is attributable to a signer.
+        try:
+            filed_by = gl.message.sender_address.as_hex
+        except Exception:
+            filed_by = ""
 
         idx = self._load_index()
         new_num = int(idx.get("count", 0)) + 1
@@ -209,7 +227,8 @@ class Precedent(gl.contract.Contract):
                 )
                 raw = gl.nondet.exec_prompt(prompt)
                 picked = _pick(raw, ["CONSISTENT", "CONTRADICTS"])
-                return picked if picked else "CONSISTENT"
+                # An unreadable answer must NOT silently count as consistent.
+                return picked if picked else "UNREVIEWED"
 
             consistent = gl.eq_principle.strict_eq(judge_consistency)
 
@@ -227,6 +246,9 @@ class Precedent(gl.contract.Contract):
                     + "; recorded as a distinguishing case.")
         elif consistent == "CONSISTENT":
             flag = "Consistent with precedent " + cited + " (auto-matched)."
+        elif consistent == "UNREVIEWED":
+            flag = ("Precedent " + cited + " was matched, but the consistency "
+                    "check was inconclusive; flagged for human review.")
         elif not precedent_found:
             flag = "No prior precedent on this matter; this case sets it."
 
@@ -240,6 +262,7 @@ class Precedent(gl.contract.Contract):
             "cited_case_id": cited if precedent_found else "",
             "precedent_consistency": consistent,
             "precedent_note": flag,
+            "filed_by": filed_by,
         }
 
         self.cases[case_id] = json.dumps(record)
@@ -251,11 +274,6 @@ class Precedent(gl.contract.Contract):
             ids = []
         ids.append(case_id)
         idx["ids"] = ids
-        sums = idx.get("sums", {})
-        if not isinstance(sums, dict):
-            sums = {}
-        sums[case_id] = summary_l
-        idx["sums"] = sums
         self.index = json.dumps(idx)
 
         return json.dumps(record)
@@ -270,7 +288,7 @@ class Precedent(gl.contract.Contract):
 
     @gl.public.view
     def list_cases(self) -> str:
-        return self.index if self.index else json.dumps({"count": 0, "ids": [], "sums": {}})
+        return self.index if self.index else json.dumps({"count": 0, "ids": []})
 
     @gl.public.view
     def case_count(self) -> int:
