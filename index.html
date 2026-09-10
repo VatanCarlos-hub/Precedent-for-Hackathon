@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Precedent — a court of record for AI agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --field:#2B1216;
+  --field-raised:#3A1A20;
+  --field-line:rgba(198,155,84,.22);
+  --leaf:#F5F2EA;
+  --leaf-edge:#E2DCCD;
+  --ink:#201A17;
+  --ink-soft:#5C524A;
+  --ink-faint:#8B8177;
+  --gilt:#C69B54;
+  --gilt-bright:#E0BB78;
+  --for:#2E6048;
+  --against:#9B3535;
+  --unsettled:#8A6A2F;
+  --display:"Libre Caslon Display",Georgia,serif;
+  --text:"Libre Caslon Text",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--field);
+  color:var(--leaf);
+  font-family:var(--text);
+  font-size:17px;
+  line-height:1.65;
+  min-height:100vh;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background:radial-gradient(120% 80% at 50% -10%,rgba(198,155,84,.10),transparent 60%);
+}
+.wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:56px 28px 96px}
+
+/* ---------- masthead ---------- */
+.masthead{display:flex;align-items:flex-start;gap:26px;padding-bottom:30px;border-bottom:1px solid var(--field-line)}
+.seal{flex:none;width:74px;height:74px;color:var(--gilt)}
+.masthead-body{flex:1;min-width:0}
+h1{
+  font-family:var(--display);
+  font-size:clamp(40px,6.2vw,64px);
+  line-height:.96;
+  letter-spacing:-.015em;
+  color:var(--leaf);
+}
+.tagline{margin-top:10px;color:rgba(245,242,234,.66);max-width:44ch;font-size:16.5px}
+.masthead-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+
+button{font-family:var(--text);font-size:15px;cursor:pointer;border:0;background:none;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--gilt-bright);outline-offset:2px}
+
+.btn-wallet{
+  border:1px solid var(--gilt);color:var(--gilt-bright);
+  padding:9px 20px;border-radius:2px;background:transparent;transition:background .18s,color .18s;
+}
+.btn-wallet:hover{background:var(--gilt);color:var(--field)}
+.btn-wallet[data-connected="true"]{border-color:rgba(245,242,234,.3);color:rgba(245,242,234,.8);cursor:default}
+.btn-wallet[data-connected="true"]:hover{background:transparent;color:rgba(245,242,234,.8)}
+.wallet-meta{font-family:var(--mono);font-size:11.5px;color:rgba(245,242,234,.42);letter-spacing:.02em}
+
+/* ---------- volume line ---------- */
+.volume{margin-top:26px;font-size:16px;color:rgba(245,242,234,.55)}
+.volume b{font-weight:400;color:var(--gilt-bright)}
+
+/* ---------- judgment sheet ---------- */
+.judgment{display:none;margin-top:34px;background:var(--leaf);color:var(--ink);padding:44px 48px 40px;box-shadow:0 22px 60px rgba(0,0,0,.45);position:relative}
+.judgment[data-open="true"]{display:block;animation:unfold .5s cubic-bezier(.22,.8,.3,1) both}
+@keyframes unfold{from{opacity:0;transform:translateY(-8px) scaleY(.985);transform-origin:top}to{opacity:1;transform:none}}
+.judgment::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--gilt),transparent 70%)}
+.j-head{display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap}
+.docket-no{font-family:var(--display);font-size:23px;color:var(--gilt);letter-spacing:.13em}
+.j-filed{font-size:14px;color:var(--ink-faint)}
+.parties{font-family:var(--display);font-size:clamp(27px,3.6vw,38px);line-height:1.15;margin:16px 0 4px;color:var(--ink)}
+.parties i{font-style:italic;color:var(--ink-soft);padding:0 .18em}
+.j-matter{font-size:17px;color:var(--ink-soft);max-width:62ch}
+.holding{margin-top:26px;padding-top:22px;border-top:1px solid var(--leaf-edge)}
+.holding-label{font-family:var(--display);font-size:15px;color:var(--ink-faint);letter-spacing:.06em}
+.holding-text{font-family:var(--display);font-size:clamp(21px,2.7vw,27px);line-height:1.32;margin-top:6px}
+.holding-text[data-w="CLAIMANT"]{color:var(--for)}
+.holding-text[data-w="RESPONDENT"]{color:var(--against)}
+.holding-text[data-w="UNCLEAR"]{color:var(--unsettled)}
+.reasoning{margin-top:12px;color:var(--ink-soft);max-width:64ch}
+
+.citation{margin-top:26px;border-left:3px solid var(--gilt);background:rgba(198,155,84,.09);padding:16px 20px}
+.citation[data-kind="none"]{border-left-color:var(--leaf-edge);background:rgba(0,0,0,.03)}
+.citation[data-kind="contradicts"]{border-left-color:var(--against);background:rgba(155,53,53,.07)}
+.citation[data-kind="unreviewed"]{border-left-color:var(--unsettled);background:rgba(138,106,47,.08)}
+.citation-line{font-size:16px}
+.cite-link{font-family:var(--display);color:var(--gilt);letter-spacing:.1em;border-bottom:1px solid rgba(198,155,84,.5);cursor:pointer;padding:0}
+.cite-link:hover{color:#9d7a3d;border-bottom-color:#9d7a3d}
+.citation-note{margin-top:5px;font-size:15px;color:var(--ink-soft)}
+.j-foot{margin-top:24px;padding-top:16px;border-top:1px solid var(--leaf-edge);display:flex;gap:26px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)}
+.j-foot a{color:var(--ink-faint)}
+
+/* ---------- columns ---------- */
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:44px;align-items:start}
+.col-title{font-family:var(--display);font-size:20px;color:var(--gilt-bright);padding-bottom:10px;border-bottom:1px solid var(--field-line);margin-bottom:4px}
+
+/* ---------- docket ---------- */
+.entry{
+  padding:17px 0 17px 16px;border-bottom:1px solid rgba(245,242,234,.09);
+  border-left:2px solid transparent;transition:border-color .3s,background .3s;
+}
+.entry.lit{border-left-color:var(--gilt);background:rgba(198,155,84,.08)}
+.entry-top{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+.entry-no{font-family:var(--display);font-size:14.5px;color:var(--gilt);letter-spacing:.11em;white-space:nowrap}
+.entry-verdict{font-size:14px;white-space:nowrap}
+.entry-verdict[data-w="CLAIMANT"]{color:#7FBF9B}
+.entry-verdict[data-w="RESPONDENT"]{color:#E08585}
+.entry-verdict[data-w="UNCLEAR"]{color:#D6B36A}
+.entry-parties{font-family:var(--display);font-size:19px;margin-top:3px;color:var(--leaf)}
+.entry-parties i{font-style:italic;color:rgba(245,242,234,.5);padding:0 .16em}
+.entry-note{font-size:14.5px;color:rgba(245,242,234,.5);margin-top:4px}
+.entry-note .g{color:var(--gilt)}
+.docket-empty{padding:26px 0;color:rgba(245,242,234,.5);max-width:38ch}
+
+/* ---------- filing desk ---------- */
+form{display:flex;flex-direction:column;gap:15px;margin-top:16px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{display:block;font-size:14.5px;color:rgba(245,242,234,.62);margin-bottom:5px}
+input,textarea{
+  width:100%;background:rgba(245,242,234,.05);border:1px solid rgba(245,242,234,.16);
+  color:var(--leaf);font-family:var(--text);font-size:16px;padding:11px 13px;border-radius:2px;
+}
+input::placeholder,textarea::placeholder{color:rgba(245,242,234,.28)}
+input:focus,textarea:focus{border-color:var(--gilt);background:rgba(245,242,234,.08)}
+textarea{resize:vertical;min-height:74px;line-height:1.5}
+.btn-file{
+  margin-top:6px;background:var(--gilt);color:#241016;font-family:var(--display);font-size:18px;
+  padding:14px;border-radius:2px;letter-spacing:.02em;transition:background .18s;
+}
+.btn-file:hover:not(:disabled){background:var(--gilt-bright)}
+.btn-file:disabled{background:rgba(245,242,234,.13);color:rgba(245,242,234,.42);cursor:not-allowed}
+.hint{font-size:14px;color:rgba(245,242,234,.42);margin-top:-4px}
+
+/* ---------- session / errors ---------- */
+.session{display:none;margin-top:18px;border:1px solid var(--field-line);background:var(--field-raised);padding:18px 20px;border-radius:2px}
+.session[data-open="true"]{display:block}
+.session-title{font-family:var(--display);font-size:18px;color:var(--gilt-bright)}
+.steps{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.step{display:flex;gap:11px;align-items:baseline;font-size:15px;color:rgba(245,242,234,.4)}
+.step[data-state="active"]{color:var(--leaf)}
+.step[data-state="done"]{color:rgba(245,242,234,.62)}
+.step-mark{font-family:var(--mono);font-size:12px;width:14px;flex:none;color:var(--gilt)}
+.step[data-state="idle"] .step-mark{color:rgba(245,242,234,.22)}
+.elapsed{margin-top:12px;font-family:var(--mono);font-size:12px;color:rgba(245,242,234,.4)}
+
+.notice{display:none;margin-top:16px;padding:15px 18px;border-left:3px solid var(--against);background:rgba(155,53,53,.15);border-radius:0 2px 2px 0;font-size:15.5px}
+.notice[data-open="true"]{display:block}
+.notice b{display:block;font-weight:400;font-family:var(--display);font-size:17px;margin-bottom:3px;color:#F0B9B9}
+.notice-detail{font-family:var(--mono);font-size:12px;color:rgba(245,242,234,.55);margin-top:7px;word-break:break-word}
+
+/* ---------- wallet picker ---------- */
+.picker{display:none;position:fixed;inset:0;background:rgba(20,8,10,.86);z-index:50;align-items:center;justify-content:center;padding:22px}
+.picker[data-open="true"]{display:flex}
+.picker-card{background:var(--field-raised);border:1px solid var(--field-line);max-width:400px;width:100%;padding:28px;border-radius:2px}
+.picker-title{font-family:var(--display);font-size:22px;color:var(--leaf)}
+.picker-sub{font-size:15px;color:rgba(245,242,234,.55);margin-top:5px}
+.picker-list{margin-top:18px;display:flex;flex-direction:column;gap:8px}
+.picker-item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:12px 14px;border:1px solid rgba(245,242,234,.16);border-radius:2px;transition:border-color .18s,background .18s}
+.picker-item:hover{border-color:var(--gilt);background:rgba(198,155,84,.09)}
+.picker-item img{width:26px;height:26px;border-radius:4px;flex:none}
+.picker-none{margin-top:16px;font-size:14.5px;color:rgba(245,242,234,.5)}
+.picker-none a{color:var(--gilt-bright)}
+.picker-close{margin-top:16px;font-size:14.5px;color:rgba(245,242,234,.5)}
+
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--field-line);font-size:14.5px;color:rgba(245,242,234,.42);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer a{color:rgba(245,242,234,.6)}
+.mono{font-family:var(--mono);font-size:11.5px}
+
+@media (max-width:860px){
+  .wrap{padding:38px 20px 70px}
+  .columns{grid-template-columns:1fr;gap:36px}
+  .masthead{flex-wrap:wrap;gap:18px}
+  .masthead-side{width:100%;align-items:flex-start}
+  .seal{width:56px;height:56px}
+  .judgment{padding:30px 24px 28px}
+  .pair{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <circle cx="50" cy="50" r="40.5" fill="none" stroke="currentColor" stroke-width=".7" opacity=".65"/>
+      <path d="M50 24v46" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M28 34h44" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M28 34l-8 17h16zM72 34l-8 17h16z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M20 51a8 8 0 0016 0M64 51a8 8 0 0016 0" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M38 76h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="50" cy="27" r="3.4" fill="currentColor"/>
+    </svg>
+    <div class="masthead-body">
+      <h1>Precedent</h1>
+      <p class="tagline">A court of record for AI agents. Every ruling is kept, and every new ruling is measured against the ones that came before it.</p>
+    </div>
+    <div class="masthead-side">
+      <button class="btn-wallet" id="walletBtn">Connect wallet</button>
+      <span class="wallet-meta" id="walletMeta"></span>
+    </div>
+  </header>
+
+  <p class="volume" id="volume">Opening the record room…</p>
+
+  <!-- judgment sheet -->
+  <article class="judgment" id="judgment" aria-live="polite">
+    <div class="j-head">
+      <span class="docket-no" id="jNo"></span>
+      <span class="j-filed" id="jFiled"></span>
+    </div>
+    <h2 class="parties" id="jParties"></h2>
+    <p class="j-matter" id="jMatter"></p>
+
+    <div class="holding">
+      <p class="holding-label">Holding</p>
+      <p class="holding-text" id="jHolding"></p>
+      <p class="reasoning" id="jReasoning"></p>
+    </div>
+
+    <div class="citation" id="jCitation">
+      <p class="citation-line" id="jCiteLine"></p>
+      <p class="citation-note" id="jCiteNote"></p>
+    </div>
+
+    <div class="j-foot">
+      <span id="jFiledBy"></span>
+      <a id="jTx" href="#" target="_blank" rel="noopener"></a>
+    </div>
+  </article>
+
+  <div class="columns">
+
+    <section>
+      <h2 class="col-title">The docket</h2>
+      <div id="docket">
+        <p class="docket-empty">Reading the record…</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="col-title">File a dispute</h2>
+      <form id="fileForm" autocomplete="off">
+        <div class="pair">
+          <div>
+            <label for="claimant">Claimant</label>
+            <input id="claimant" required maxlength="80" placeholder="Agent bringing the claim">
+          </div>
+          <div>
+            <label for="respondent">Respondent</label>
+            <input id="respondent" required maxlength="80" placeholder="Agent answering it">
+          </div>
+        </div>
+        <div>
+          <label for="summary">What the deal was</label>
+          <textarea id="summary" required maxlength="400" placeholder="One or two sentences the panel can rule on."></textarea>
+        </div>
+        <div>
+          <label for="argC">What the claimant says</label>
+          <textarea id="argC" required maxlength="600"></textarea>
+        </div>
+        <div>
+          <label for="argR">What the respondent says</label>
+          <textarea id="argR" required maxlength="600"></textarea>
+        </div>
+        <button class="btn-file" id="fileBtn" type="submit" disabled>Connect a wallet to file</button>
+        <p class="hint">Filing costs a small GEN fee on the devnet, most of which is refunded once the panel settles.</p>
+      </form>
+
+      <div class="session" id="session" aria-live="polite">
+        <p class="session-title">The panel is sitting</p>
+        <div class="steps">
+          <div class="step" id="s1" data-state="idle"><span class="step-mark">1</span><span>Quoting the filing fee</span></div>
+          <div class="step" id="s2" data-state="idle"><span class="step-mark">2</span><span>Entering the filing on chain</span></div>
+          <div class="step" id="s3" data-state="idle"><span class="step-mark">3</span><span>Validators deliberating</span></div>
+          <div class="step" id="s4" data-state="idle"><span class="step-mark">4</span><span>Judgment entered</span></div>
+        </div>
+        <p class="elapsed" id="elapsed"></p>
+      </div>
+
+      <div class="notice" id="notice">
+        <b id="noticeTitle"></b>
+        <span id="noticeBody"></span>
+        <p class="notice-detail" id="noticeDetail"></p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <span>Rulings are produced by GenLayer validators. This is a devnet court; nothing here is legal advice.</span>
+    <a class="mono" id="contractLink" href="#" target="_blank" rel="noopener"></a>
+  </footer>
+</div>
+
+<!-- wallet picker -->
+<div class="picker" id="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+  <div class="picker-card">
+    <p class="picker-title" id="pickerTitle">Choose a wallet</p>
+    <p class="picker-sub">Precedent talks to your browser wallet directly.</p>
+    <div class="picker-list" id="pickerList"></div>
+    <p class="picker-none" id="pickerNone" hidden>
+      No browser wallet found. Install <a href="https://metamask.io/" target="_blank" rel="noopener">MetaMask</a> or another EVM wallet, then reload this page.
+    </p>
+    <button class="picker-close" id="pickerClose">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+/* ============================================================
+   Precedent — frontend
+   Wallets: EIP-6963 discovery plus window.ethereum only.
+   WalletConnect is deliberately not used, so none of its
+   project-id / relay / chain-array failure modes can occur.
+   SDK: pinned to the exact release that ships the studioDevnet
+   chain (2.0.0-rc.1). "@latest" would silently resolve to 1.1.8,
+   which does not know this network at all.
+   ============================================================ */
+
+import { createClient } from 'https://esm.sh/genlayer-js@2.0.0-rc.1';
+import { studioDevnet } from 'https://esm.sh/genlayer-js@2.0.0-rc.1/chains';
+
+const DEFAULT_CONTRACT = '0xd07061721Cbdc3381EdC48E5c96deF3b820D3900';
+
+// A reviewer can point this page at their own deployment with
+// ?contract=0x... instead of editing the file. Anything that is not a
+// well-formed address is ignored rather than silently used.
+function resolveContract() {
+  const q = new URLSearchParams(location.search).get('contract');
+  return (q && /^0x[0-9a-fA-F]{40}$/.test(q)) ? q : DEFAULT_CONTRACT;
+}
+const CONTRACT   = resolveContract();
+const CHAIN      = studioDevnet;                     // id 61997
+const CHAIN_HEX  = '0x' + CHAIN.id.toString(16);     // 0xf22d
+const RPC        = CHAIN.rpcUrls.default.http[0];
+const STUDIO_URL = 'https://studio-next.genlayer.com/?import-contract=' + CONTRACT;
+const MAX_ROWS   = 12;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shortAddr = a => a ? a.slice(0, 6) + '…' + a.slice(-4) : '';
+
+let provider = null, account = null, client = null, timer = null;
+let detachWalletEvents = null;   // tears down the previous provider's listeners
+
+/* ---------- wallet discovery (EIP-6963) ---------- */
+const wallets = [];
+window.addEventListener('eip6963:announceProvider', e => {
+  if (e.detail?.provider && !wallets.some(w => w.info.uuid === e.detail.info.uuid)) {
+    wallets.push(e.detail);
+  }
+});
+window.dispatchEvent(new Event('eip6963:requestProvider'));
+
+function availableWallets() {
+  if (wallets.length) return wallets;
+  if (window.ethereum) {
+    return [{ info: { name: 'Browser wallet', icon: '', uuid: 'injected' }, provider: window.ethereum }];
+  }
+  return [];
+}
+
+$('walletBtn').addEventListener('click', () => {
+  if (account) return;
+  const list = availableWallets();
+  if (list.length === 1) { connect(list[0]); return; }
+  renderPicker(list);
+  $('picker').dataset.open = 'true';
+});
+$('pickerClose').addEventListener('click', () => { $('picker').dataset.open = 'false'; });
+$('picker').addEventListener('click', e => { if (e.target === $('picker')) $('picker').dataset.open = 'false'; });
+
+function renderPicker(list) {
+  const box = $('pickerList');
+  box.innerHTML = '';
+  $('pickerNone').hidden = list.length > 0;
+  list.forEach(w => {
+    const b = document.createElement('button');
+    b.className = 'picker-item';
+    b.type = 'button';
+    b.innerHTML = (w.info.icon ? `<img src="${esc(w.info.icon)}" alt="">` : '') +
+                  `<span>${esc(w.info.name)}</span>`;
+    b.onclick = () => { $('picker').dataset.open = 'false'; connect(w); };
+    box.appendChild(b);
+  });
+}
+
+async function connect(entry) {
+  clearNotice();
+  try {
+    provider = entry.provider;
+    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+    if (!accounts?.length) throw new Error('The wallet returned no accounts.');
+    account = accounts[0];
+
+    await ensureChain();
+
+    // The SDK accepts an explicit provider, so the chosen wallet is used
+    // directly. Passing the account as a string (not an object) is what
+    // puts the client in browser-wallet signing mode.
+    client = createClient({ chain: CHAIN, account, provider });
+
+    const btn = $('walletBtn');
+    btn.textContent = shortAddr(account);
+    btn.dataset.connected = 'true';
+    $('walletMeta').textContent = CHAIN.name;
+
+    const fb = $('fileBtn');
+    fb.disabled = false;
+    fb.textContent = 'File dispute';
+
+    // Reconnecting, or picking a different wallet, must not stack listeners
+    // on top of the old provider's.
+    detachWalletEvents?.();
+    const reload = () => window.location.reload();
+    const bound = provider;
+    bound.on?.('accountsChanged', reload);
+    bound.on?.('chainChanged', reload);
+    detachWalletEvents = () => {
+      bound.removeListener?.('accountsChanged', reload);
+      bound.removeListener?.('chainChanged', reload);
+      detachWalletEvents = null;
+    };
+
+    loadDocket();
+  } catch (err) {
+    showNotice('Wallet not connected', 'The connection was refused or dismissed. Try again and approve the request.', err);
+  }
+}
+
+async function ensureChain() {
+  const current = await provider.request({ method: 'eth_chainId' });
+  if (current?.toLowerCase() === CHAIN_HEX) return;
+  try {
+    await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_HEX }] });
+  } catch (err) {
+    // 4902 = chain unknown to the wallet, so add it first, then switch.
+    if (err?.code === 4902 || err?.data?.originalError?.code === 4902) {
+      await provider.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: CHAIN_HEX,
+          chainName: CHAIN.name,
+          rpcUrls: [RPC],
+          nativeCurrency: CHAIN.nativeCurrency,
+        }],
+      });
+      await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_HEX }] });
+    } else {
+      throw err;
+    }
+  }
+}
+
+/* ---------- reading the record ---------- */
+function readOnlyClient() {
+  // Reads go over RPC, not the wallet, so no account is needed here.
+  return client || createClient({ chain: CHAIN });
+}
+
+async function loadDocket() {
+  const c = readOnlyClient();
+  try {
+    const raw = await c.readContract({ address: CONTRACT, functionName: 'list_cases', args: [] });
+    const index = JSON.parse(raw || '{"count":0,"ids":[]}');
+    const ids = Array.isArray(index.ids) ? index.ids : [];
+    const count = Number(index.count || ids.length);
+
+    $('volume').innerHTML = count === 0
+      ? 'No cases reported yet.'
+      : `<b>${count}</b> ${count === 1 ? 'case' : 'cases'} reported. Newest first.`;
+
+    if (!ids.length) {
+      $('docket').innerHTML = '<p class="docket-empty">The record is empty. The first filing becomes the precedent every later ruling is measured against.</p>';
+      return;
+    }
+
+    const recent = ids.slice(-MAX_ROWS).reverse();
+    const records = await Promise.all(recent.map(async id => {
+      try {
+        const r = await c.readContract({ address: CONTRACT, functionName: 'get_case', args: [id] });
+        return r ? JSON.parse(r) : null;
+      } catch { return null; }
+    }));
+    renderDocket(records.filter(Boolean));
+  } catch (err) {
+    $('volume').textContent = 'The record room could not be reached.';
+    $('docket').innerHTML = '<p class="docket-empty">Could not read the case list. Check your connection and reload.</p>';
+    console.error('[precedent] list_cases failed', err);
+  }
+}
+
+const VERDICT_SHORT = { CLAIMANT: 'for the claimant', RESPONDENT: 'for the respondent', UNCLEAR: 'undecided' };
+// Only these three drive styling. An unexpected value from the contract
+// still renders its own text, but falls back to neutral colouring instead
+// of producing an attribute no stylesheet accounts for.
+const verdictState = w => (w in VERDICT_SHORT ? w : 'OTHER');
+
+function renderDocket(records) {
+  $('docket').innerHTML = records.map(r => {
+    const cited = r.cited_case_id;
+    const cons  = r.precedent_consistency;
+    let note;
+    if (!cited)                      note = 'Sets precedent on this matter';
+    else if (cons === 'CONSISTENT')  note = `Follows <span class="g">${esc(cited)}</span>`;
+    else if (cons === 'CONTRADICTS') note = `Departs from <span class="g">${esc(cited)}</span>`;
+    else                             note = `Cites <span class="g">${esc(cited)}</span>, consistency unreviewed`;
+
+    return `<article class="entry" id="row-${esc(r.case_id)}">
+      <div class="entry-top">
+        <span class="entry-no">${esc(r.case_id)}</span>
+        <span class="entry-verdict" data-w="${verdictState(r.winner)}">${esc(VERDICT_SHORT[r.winner] || r.winner)}</span>
+      </div>
+      <p class="entry-parties">${esc(r.claimant)}<i>v.</i>${esc(r.respondent)}</p>
+      <p class="entry-note">${note}</p>
+    </article>`;
+  }).join('');
+}
+
+/* ---------- filing ---------- */
+const setStep = (n, state) => { $('s' + n).dataset.state = state; };
+function resetSteps() { [1,2,3,4].forEach(n => setStep(n, 'idle')); }
+
+function startClock() {
+  const t0 = Date.now();
+  stopClock();
+  timer = setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $('elapsed').textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')} in session`;
+  }, 1000);
+}
+function stopClock() { if (timer) { clearInterval(timer); timer = null; } }
+
+function showNotice(title, body, err) {
+  $('noticeTitle').textContent = title;
+  $('noticeBody').textContent = body;
+  $('noticeDetail').textContent = err ? (err.shortMessage || err.message || String(err)) : '';
+  $('notice').dataset.open = 'true';
+  if (err) console.error('[precedent]', err);
+}
+function clearNotice() { $('notice').dataset.open = 'false'; }
+
+$('fileForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!client) return;
+
+  const args = [
+    $('claimant').value.trim(),
+    $('respondent').value.trim(),
+    $('summary').value.trim(),
+    $('argC').value.trim(),
+    $('argR').value.trim(),
+    String(new Date().getFullYear()),   // the contract has no clock; the caller supplies the year
+  ];
+
+  clearNotice();
+  resetSteps();
+  $('judgment').dataset.open = 'false';
+  $('session').dataset.open = 'true';
+  $('fileBtn').disabled = true;
+  $('fileBtn').textContent = 'Filing…';
+  startClock();
+
+  try {
+    setStep(1, 'active');
+    const fees = await client.estimateTransactionFees({
+      address: CONTRACT, functionName: 'file_dispute', args,
+    });
+    setStep(1, 'done');
+
+    setStep(2, 'active');
+    const hash = await client.writeContract({
+      address: CONTRACT, functionName: 'file_dispute', args, value: 0n, fees,
+    });
+    setStep(2, 'done');
+
+    setStep(3, 'active');
+    const receipt = await client.waitForTransactionReceipt({
+      hash, waitUntil: 'finalized', retries: 80, interval: 5000,
+    });
+    setStep(3, 'done');
+    setStep(4, 'done');
+    stopClock();
+
+    const caseId = extractCaseId(receipt) || await newestCaseId();
+    if (!caseId) throw new Error('The judgment was entered but its docket number could not be read.');
+    const record = await client.readContract({
+      address: CONTRACT, functionName: 'get_case', args: [caseId],
+    });
+    showJudgment(JSON.parse(record), hash);
+    $('fileForm').reset();
+    loadDocket();
+  } catch (err) {
+    stopClock();
+    [1,2,3,4].forEach(n => { if ($('s'+n).dataset.state === 'active') setStep(n, 'idle'); });
+    reportFilingError(err);
+  } finally {
+    $('session').dataset.open = 'false';
+    $('fileBtn').disabled = false;
+    $('fileBtn').textContent = 'File dispute';
+  }
+});
+
+// The contract returns the full record as its return value; the receipt
+// carries it under data. Fall back to the newest id if the shape differs.
+function extractCaseId(receipt) {
+  const raw = receipt?.data?.calldata?.returned ?? receipt?.returned ?? receipt?.data?.returned;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (parsed?.case_id) return parsed.case_id;
+  } catch { /* fall through */ }
+  return null;
+}
+
+// Fallback: if the receipt shape changes, the newest entry in the index is
+// this filing, because the contract appends one id per successful ruling.
+async function newestCaseId() {
+  try {
+    const raw = await readOnlyClient().readContract({
+      address: CONTRACT, functionName: 'list_cases', args: [],
+    });
+    const ids = JSON.parse(raw || '{}').ids;
+    return Array.isArray(ids) && ids.length ? ids[ids.length - 1] : null;
+  } catch { return null; }
+}
+
+function reportFilingError(err) {
+  const msg = (err?.shortMessage || err?.message || '').toLowerCase();
+  if (msg.includes('user rejected') || msg.includes('user denied') || err?.code === 4001) {
+    showNotice('Filing cancelled', 'You dismissed the wallet request, so nothing was filed.', null);
+  } else if (msg.includes('insufficient') || msg.includes('funds')) {
+    showNotice('Not enough GEN', 'This wallet cannot cover the filing fee on the devnet. Fund it and file again.', err);
+  } else if (msg.includes('feevalue')) {
+    showNotice('Fee quote rejected', 'The network refused the quoted fee. Wait a moment and file again.', err);
+  } else {
+    showNotice('The filing did not go through', 'The transaction was rejected before a judgment was entered. The details below are what the network reported.', err);
+  }
+}
+
+/* ---------- judgment sheet ---------- */
+function showJudgment(r, hash) {
+  if (!r) return;
+  $('jNo').textContent = r.case_id;
+  $('jFiled').textContent = 'Filed and finalized on chain';
+  $('jParties').innerHTML = `${esc(r.claimant)}<i>v.</i>${esc(r.respondent)}`;
+  $('jMatter').textContent = r.summary;
+
+  const w = r.winner;
+  const holding = w === 'CLAIMANT'   ? 'Judgment for the claimant'
+                : w === 'RESPONDENT' ? 'Judgment for the respondent'
+                : 'The panel could not decide';
+  const h = $('jHolding');
+  h.textContent = holding;
+  h.dataset.w = verdictState(w);
+  $('jReasoning').textContent = r.reasoning || '';
+
+  const cited = r.cited_case_id, cons = r.precedent_consistency;
+  const box = $('jCitation'), line = $('jCiteLine'), note = $('jCiteNote');
+
+  if (!cited) {
+    box.dataset.kind = 'none';
+    line.textContent = 'No earlier case matched this matter.';
+    note.textContent = 'This ruling becomes the precedent later filings are measured against.';
+  } else {
+    const kindMap = { CONSISTENT: 'follows', CONTRADICTS: 'contradicts', UNREVIEWED: 'unreviewed' };
+    box.dataset.kind = kindMap[cons] || 'follows';
+    const verb = cons === 'CONSISTENT'  ? 'The court found this consistent with'
+               : cons === 'CONTRADICTS' ? 'The court found this departs from'
+               : 'The court matched this to';
+    line.innerHTML = `${verb} <button class="cite-link" type="button" data-goto="${esc(cited)}">${esc(cited)}</button>, which it found on its own.`;
+    note.textContent = r.precedent_note || '';
+  }
+
+  $('jFiledBy').textContent = r.filed_by ? 'Filed by ' + shortAddr(r.filed_by) : '';
+  const tx = $('jTx');
+  tx.textContent = hash ? shortAddr(hash) : '';
+  tx.href = STUDIO_URL;
+
+  $('judgment').dataset.open = 'true';
+  $('judgment').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Clicking a citation walks to the cited case in the docket and lights it up.
+document.addEventListener('click', e => {
+  const id = e.target?.dataset?.goto;
+  if (!id) return;
+  const row = document.getElementById('row-' + id);
+  if (!row) return;
+  document.querySelectorAll('.entry.lit').forEach(el => el.classList.remove('lit'));
+  row.classList.add('lit');
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+/* ---------- boot ---------- */
+$('contractLink').textContent = CONTRACT;
+$('contractLink').href = STUDIO_URL;
+loadDocket();
+</script>
+</body>
+</html>
