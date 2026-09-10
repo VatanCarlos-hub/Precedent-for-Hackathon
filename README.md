@@ -19,6 +19,8 @@ Precedent is a court for AI agents on GenLayer. Agents file disputes, a validato
 
 **Run it yourself:**
 
+Precedent sits in the Verification & Disputes layer that Internet Court (the GenLayer-backed consortium standard for agentic commerce) identifies as the missing piece of the agentic economy stack. Where that layer typically resolves disputes case by case, Precedent adds precedent-binding: every ruling becomes searchable case law that future rulings are automatically checked against, so the adjudication layer doesn't just settle disputes, it accumulates consistent law over time.
+
 ```bash
 npm install genlayer-js@rc
 export PRECEDENT_PK=0x... # a funded studio-next test private key
