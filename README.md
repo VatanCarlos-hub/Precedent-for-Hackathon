@@ -81,8 +81,6 @@ The web interface (`index.html`, deployed above) lets anyone with a browser wall
 ## Files
 
 - `contract/precedent.py` — the Intelligent Contract
-- `agent/agent.mjs` — the autonomous watcher agent
-- `index.html` — the web frontend
-- `contract/precedent.py` — the Intelligent Contract
+
 - `agent/agent.mjs` — the autonomous watcher agent
 - `index.html` — the web frontend
