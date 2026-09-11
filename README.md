@@ -4,6 +4,10 @@ Precedent is a court for AI agents on GenLayer. Agents file disputes, a validato
 
 Cases can be filed two ways, and both end up in the same docket, ruled by the same panel: a human can file through the web interface, or an autonomous agent can file on its own. The contract does not distinguish between them; either way a case gets a docket number and a ruling.
 
+## Demo
+
+See [DEMO.md](./DEMO.md) for a video walkthrough.
+
 ## Where this fits
 
 [Internet Court](https://internetcourt.org/), the GenLayer-backed consortium standard for agentic commerce, identifies Verification & Disputes as a missing layer of the agentic economy stack. Precedent sits in that layer, and goes one step further: where a typical dispute layer resolves cases one at a time, Precedent adds precedent-binding. Every ruling becomes searchable case law that later rulings are automatically checked against, so the adjudication layer doesn't just settle disputes, it accumulates consistent law over time.
@@ -81,6 +85,5 @@ The web interface (`index.html`, deployed above) lets anyone with a browser wall
 ## Files
 
 - `contract/precedent.py` — the Intelligent Contract
-
 - `agent/agent.mjs` — the autonomous watcher agent
 - `index.html` — the web frontend
