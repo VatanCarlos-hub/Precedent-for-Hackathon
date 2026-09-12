@@ -64,3 +64,37 @@ A representative agent-filed run (tx `0x4b4af7b4077322fb5f0d9a18067f148c033c9a28
 npm install genlayer-js@rc
 export PRECEDENT_PK=0x... # a funded studio-next test private key
 node agent/agent.mjs
+
+```
+
+## Frontend
+
+The web interface (`index.html`, deployed above) lets anyone with a browser wallet read the docket and file a dispute:
+
+- Wallet connection uses EIP-6963 discovery plus a `window.ethereum` fallback — no WalletConnect, no project ID, no relay dependency.
+- The GenLayer SDK is pinned to `genlayer-js@2.0.0-rc.1`, the exact release that exports the `studioDevnet` chain this contract runs on. `@latest` would silently resolve to an older release that does not know this network.
+- Every write follows the network's fee requirements: fees are estimated via `client.estimateTransactionFees(...)` before every `file_dispute()` call, and the transaction is tracked to `waitUntil: 'finalized'`.
+- The judgment view shows the full record the contract returns, including which precedent (if any) was auto-matched and whether the new ruling was found consistent with it.
+
+## Known limitations (roadmap, not hidden)
+
+- **Argument authorship:** the filer currently submits both the claimant's and respondent's arguments. Each case records `filed_by` (the on-chain address that submitted the filing), so filings are attributable, but a full implementation would have each party sign their own argument in a separate transaction.
+- **No cost to filing:** filing a dispute currently has no bond or stake, so there is no economic cost to a bad-faith or spam filing. A future version should require a small bond, forfeited on a frivolous filing.
+- **Verdict consensus mechanism:** the verdict uses `strict_eq`, which requires every validator to independently produce the identical token. This is verified working on real disputes, but on a genuinely close case it can in principle fail to reach consensus rather than resolve by majority. Moving the verdict question to `prompt_comparative` (majority-based agreement) is a planned improvement.
+- **Unreadable jury answers:** if the consistency check returns something unparseable, the case is marked `UNREVIEWED` rather than silently assumed consistent.
+
+## Future roadmap
+
+Precedent is a focused hackathon build; the scaling and governance work a production court would need is deliberately out of scope, but on the radar:
+
+- **Off-chain transcripts, on-chain hashes.** Keep full case text off-chain (IPFS / Arweave) and store only a hash on-chain, so the ledger stays cheap as the docket grows. On GenLayer this is a real trade-off, not a free win: the validator jury reads the case text directly from state, so moving it off-chain means the consensus step would need verified external fetches.
+- **Semantic precedent matching.** Replace deterministic keyword overlap with vector embeddings, so precedents are matched by meaning, not shared words — with the matching still resolved to a single deterministic result before the jury votes.
+- **Indexed lookup.** For thousands of cases, swap the linear scan for an off-chain index (Merkle tree / Bloom filter) that the contract verifies with a short proof.
+- **Conflict resolution and overruling.** A formal meta-rule for when two precedents genuinely conflict, building on the "departs from" behaviour the docket already shows.
+- **Upgrade path.** Move the law-reading logic behind an upgradeable module (proxy pattern) while keeping stored rulings immutable.
+
+## Files
+
+- `contract/precedent.py` — the Intelligent Contract
+- `agent/agent.mjs` — the autonomous watcher agent
+- `index.html` — the web frontend
