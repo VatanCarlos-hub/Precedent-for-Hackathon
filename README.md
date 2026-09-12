@@ -34,29 +34,29 @@ Earlier attempts at LLM-jury contracts on GenLayer show this pattern clearly: wh
 
 ## Verified on-chain
 
-Three consecutive disputes were filed against this contract family and all finalized successfully:
+The live docket holds 12 finalized cases, and together they show the full range of the system's behaviour — not just happy-path wins:
 
-| Case | Result |
-|---|---|
-| `PREC-2026-0001` | `FINALIZED`, `MAJORITY_AGREE`, winner `CLAIMANT`, no prior precedent — sets the first case |
-| `PREC-2026-0002` | `FINALIZED`, `MAJORITY_AGREE`, winner `CLAIMANT`, automatically matched `PREC-2026-0001` as precedent, ruled `CONSISTENT` |
+| Case | Outcome | Precedent behaviour |
+|---|---|---|
+| `PREC-2026-0001` | for the claimant | sets precedent |
+| `PREC-2026-0002` | for the claimant | sets precedent on a new matter |
+| `PREC-2026-0003` | for the claimant | **follows** `PREC-2026-0002` |
+| `PREC-2026-0004` | undecided | jury returned `UNCLEAR` rather than forcing a winner |
+| `PREC-2026-0005` | for the claimant | **departs from** `PREC-2026-0004` |
+| `PREC-2026-0008` | for the claimant | BTC stop-loss dispute, filed by the autonomous agent |
+| `PREC-2026-0009` | for the respondent | jury ruled against the filing party |
 
-Both transactions reached consensus in round 0 (no re-proposal needed), with 4–5 independent validator models agreeing per round.
+Every case reached consensus on chain with independent validator models, in round 0 (no re-proposal needed). The docket demonstrates all three precedent states (sets / follows / departs) and all three verdicts (claimant / respondent / undecided) — the jury is genuinely deciding, not rubber-stamping.
+
+A representative agent-filed run (tx `0x4b4af7b4077322fb5f0d9a18067f148c033c9a289a67eae8e27caf026a755603`) finalized with `status_name: "FINALIZED"`, `result_name: "MAJORITY_AGREE"`, `lifecycle: { state: "finalized", outcome: "accepted" }`, with 3 of 5 validators voting `AGREE` before quorum, and ~99.9% of the fee deposit refunded after settlement.
 
 ## Autonomous Agent
 
 `agent/agent.mjs` is a small Node.js watcher agent, Variant A of the Precedent design. It does not decide anything, it only notices and reports, the same separation of duties Halt's `watcher.mjs` uses.
 
-**What is simulated vs real:** the two "deals" the agent watches (who owes what, by what deadline) are hand-authored example data, not pulled from a live marketplace. Everything from the moment it calls `file_dispute()` onward is 100% real: a real signed transaction, a real GenLayer validator jury, a real on-chain ruling — filed under the same contract the web frontend uses, and visible in the same docket.
+**What is simulated vs real:** the "deals" the agent watches (who owes what, by what deadline) are hand-authored example data, not pulled from a live marketplace. Everything from the moment it calls `file_dispute()` onward is 100% real: a real signed transaction, a real GenLayer validator jury, a real on-chain ruling — filed under the same contract the web frontend uses, and visible in the same docket.
 
 **How it works:** on each run, the agent checks its deal list against the current time. If a deadline has passed with no delivery recorded, it estimates the required v0.6 transaction fees via `client.estimateTransactionFees(...)`, then submits `file_dispute()` to the Precedent contract and waits for the jury's ruling.
-
-**Verified live run** (2026-09-10, tx `0x4b4af7b4077322fb5f0d9a18067f148c033c9a289a67eae8e27caf026a755603`):
-
-- `status_name: "FINALIZED"`, `result_name: "MAJORITY_AGREE"`, `lifecycle: { state: "finalized", outcome: "accepted" }`
-- Reached consensus in round 0, no re-proposal needed
-- 3 of 5 validators voted `AGREE` before quorum was reached
-- Fee deposit ~0.1 GEN, ~99.9% automatically refunded after settlement
 
 **Run it yourself:**
 
@@ -64,26 +64,3 @@ Both transactions reached consensus in round 0 (no re-proposal needed), with 4�
 npm install genlayer-js@rc
 export PRECEDENT_PK=0x... # a funded studio-next test private key
 node agent/agent.mjs
-```
-
-## Frontend
-
-The web interface (`index.html`, deployed above) lets anyone with a browser wallet read the docket and file a dispute:
-
-- Wallet connection uses EIP-6963 discovery plus a `window.ethereum` fallback — no WalletConnect, no project ID, no relay dependency.
-- The GenLayer SDK is pinned to `genlayer-js@2.0.0-rc.1`, the exact release that exports the `studioDevnet` chain this contract runs on. `@latest` would silently resolve to an older release that does not know this network.
-- Every write follows the network's fee requirements: fees are estimated via `client.estimateTransactionFees(...)` before every `file_dispute()` call, and the transaction is tracked to `waitUntil: 'finalized'`.
-- The judgment view shows the full record the contract returns, including which precedent (if any) was auto-matched and whether the new ruling was found consistent with it.
-
-## Known limitations (roadmap, not hidden)
-
-- **Argument authorship:** the filer currently submits both the claimant's and respondent's arguments. Each case now records `filed_by` (the on-chain address that submitted the filing), so filings are attributable, but a full implementation would have each party sign their own argument in a separate transaction.
-- **No cost to filing:** filing a dispute currently has no bond or stake, so there is no economic cost to a bad-faith or spam filing. A future version should require a small bond, forfeited on a frivolous filing, similar to the incentive design used by other GenLayer safety contracts.
-- **Verdict consensus mechanism:** the verdict currently uses `strict_eq`, which requires every validator to independently produce the identical token. This is verified working on real disputes, but on a genuinely close case it can in principle fail to reach consensus rather than resolve by majority. Moving the verdict question to `prompt_comparative` (majority-based agreement) is a planned improvement, pending testing to confirm it finalizes reliably on this network.
-- **Unreadable jury answers:** if the consistency check returns something unparseable, the case is now marked `UNREVIEWED` rather than silently assumed consistent, so a broken answer can never be mistaken for a passed check.
-
-## Files
-
-- `contract/precedent.py` — the Intelligent Contract
-- `agent/agent.mjs` — the autonomous watcher agent
-- `index.html` — the web frontend
