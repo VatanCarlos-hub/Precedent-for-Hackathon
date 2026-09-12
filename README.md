@@ -40,9 +40,9 @@ The live docket holds 12 finalized cases, and together they show the full range 
 |---|---|---|
 | `PREC-2026-0001` | for the claimant | sets precedent |
 | `PREC-2026-0002` | for the claimant | sets precedent on a new matter |
-| `PREC-2026-0003` | for the claimant | **follows** `PREC-2026-0002` |
+| `PREC-2026-0003` | for the claimant | follows `PREC-2026-0002` |
 | `PREC-2026-0004` | undecided | jury returned `UNCLEAR` rather than forcing a winner |
-| `PREC-2026-0005` | for the claimant | **departs from** `PREC-2026-0004` |
+| `PREC-2026-0005` | for the claimant | departs from `PREC-2026-0004` |
 | `PREC-2026-0008` | for the claimant | BTC stop-loss dispute, filed by the autonomous agent |
 | `PREC-2026-0009` | for the respondent | jury ruled against the filing party |
 
@@ -64,13 +64,3 @@ A representative agent-filed run (tx `0x4b4af7b4077322fb5f0d9a18067f148c033c9a28
 npm install genlayer-js@rc
 export PRECEDENT_PK=0x... # a funded studio-next test private key
 node agent/agent.mjs
-
-## Future roadmap
-
-Precedent is a focused hackathon build; the scaling and governance work a production "court" would need is deliberately out of scope, but on the radar:
-
-- **Off-chain transcripts, on-chain hashes.** Keep full case text off-chain (IPFS / Arweave) and store only a hash on-chain, so the ledger stays cheap as the docket grows. On GenLayer this is a real trade-off, not a free win: today the validator jury reads the case text directly from state, so moving it off-chain means the consensus step would need verified external fetches. Worth doing, worth doing carefully.
-- **Semantic precedent matching.** Replace deterministic keyword overlap with vector embeddings, so precedents are matched by meaning, not shared words — with the matching still resolved to a single deterministic result before the jury votes, to keep consensus intact.
-- **Indexed lookup.** For thousands of cases, swap the linear scan for an off-chain index (Merkle tree / Bloom filter) that the contract verifies with a short proof, instead of walking every case on chain.
-- **Conflict resolution and overruling.** A formal meta-rule for when two precedents genuinely conflict (newest-non-overruled wins, or a governance vote), building on the "departs from" behaviour the docket already shows.
-- **Upgrade path.** Move the law-reading logic behind an upgradeable module (proxy pattern) while keeping the stored rulings themselves immutable, so the matching algorithm can improve without rewriting history.
