@@ -16,39 +16,39 @@ See [DEMO.md](./DEMO.md) for a video walkthrough.
 
 - **Frontend:** https://precedent-for-hackathon.vercel.app/
 - **Network:** GenLayer studio-next (studioDevnet, chain id 61997)
-- **Contract address:** `0xd07061721Cbdc3381EdC48E5c96deF3b820D3900`
+- **Contract address:** `0x3F7EAb3Ff139BDe2005D5e38c42c8195CDb452c3`
 - **Contract source:** `contract/precedent.py`
 
 ## How it works
 
-1. **File a dispute** — `file_dispute(claimant, respondent, summary, claimant_argument, respondent_argument, year)`. The contract itself searches all prior cases for the most similar one (deterministic keyword overlap, no LLM involved) and, if a close enough match exists, treats it as the relevant precedent.
-2. **The jury rules — one word at a time.** Independent validator models can reliably agree on a single token, not on free-form text. So the jury answers exactly two single-word questions, each bound by a separate `gl.eq_principle.strict_eq` call:
+1. **File a dispute** — `file_dispute(claimant, respondent, summary, claimant_argument, respondent_argument, evidence, year)`. The contract itself searches all prior cases for the most similar one (deterministic keyword overlap, no LLM involved) and, if a close enough match exists, treats it as the relevant precedent. Evidence is optional; when submitted, the jury weighs it separately.
+2. **The jury rules — one word at a time.** Independent validator models can reliably agree on a single token, not on free-form text. So the jury answers up to three single-word questions, each bound by a separate `gl.eq_principle.strict_eq` call:
    - *Who is right?* → `CLAIMANT` / `RESPONDENT` / `UNCLEAR`
+   - *How strongly does the evidence support the claim?* → `STRONG` / `WEAK` / `IRRELEVANT` (only asked when evidence was submitted)
    - *Does this ruling contradict the matched precedent?* → `CONSISTENT` / `CONTRADICTS` (only asked when a precedent was found)
 3. **Everything else is deterministic Python** — reasoning text, the case record, the docket number. No arithmetic or bookkeeping is left to the jury.
 4. **Every ruling is stored as case law**, under a real docket number (`PREC-<year>-<sequence>`, e.g. `PREC-2026-0001`), and is available for future disputes to be matched against.
 
 ## Why single-word consensus
 
-Earlier attempts at LLM-jury contracts on GenLayer show this pattern clearly: when validators (different underlying models — GPT, Claude, Gemini, Grok, Mistral, DeepSeek) are asked to produce matching free-form text or JSON, they virtually never agree byte-for-byte, and the transaction ends `UNDETERMINED`. Reducing the jury's actual decision to a single token from a small fixed set is what makes independent models converge. Precedent applies this twice: once for the verdict, once for precedent-consistency.
+Earlier attempts at LLM-jury contracts on GenLayer show this pattern clearly: when validators (different underlying models — GPT, Claude, Gemini, Grok, Mistral, DeepSeek) are asked to produce matching free-form text or JSON, they virtually never agree byte-for-byte, and the transaction ends `UNDETERMINED`. Reducing the jury's actual decision to a single token from a small fixed set is what makes independent models converge. Precedent applies this pattern for every jury question: the verdict, the evidence assessment, and the precedent-consistency check.
 
 ## Verified on-chain
 
-The live docket holds 12 finalized cases, and together they show the full range of the system's behaviour — not just happy-path wins:
+The live docket holds 11 finalized cases on this contract, and together they show the full range of the system's behaviour — not just happy-path wins:
 
 | Case | Outcome | Precedent behaviour |
 |---|---|---|
 | `PREC-2026-0001` | for the claimant | sets precedent |
-| `PREC-2026-0002` | for the claimant | sets precedent on a new matter |
-| `PREC-2026-0003` | for the claimant | follows `PREC-2026-0002` |
-| `PREC-2026-0004` | undecided | jury returned `UNCLEAR` rather than forcing a winner |
-| `PREC-2026-0005` | for the claimant | departs from `PREC-2026-0004` |
-| `PREC-2026-0008` | for the claimant | BTC stop-loss dispute, filed by the autonomous agent |
-| `PREC-2026-0009` | for the respondent | jury ruled against the filing party |
+| `PREC-2026-0002` | undecided | departs from `PREC-2026-0001` |
+| `PREC-2026-0003` | for the claimant | departs from `PREC-2026-0002` |
+| `PREC-2026-0004` | for the claimant | sets precedent on a new matter (CSV-duplicates evidence case) |
+| `PREC-2026-0005` | for the claimant | follows `PREC-2026-0003` |
+| `PREC-2026-0006` | undecided | departs from `PREC-2026-0005` |
+| `PREC-2026-0007` | for the claimant | follows `PREC-2026-0005` |
+| `PREC-2026-0010` | for the respondent | jury ruled against the filing party |
 
-Every case reached consensus on chain with independent validator models, in round 0 (no re-proposal needed). The docket demonstrates all three precedent states (sets / follows / departs) and all three verdicts (claimant / respondent / undecided) — the jury is genuinely deciding, not rubber-stamping.
-
-A representative agent-filed run (tx `0x4b4af7b4077322fb5f0d9a18067f148c033c9a289a67eae8e27caf026a755603`) finalized with `status_name: "FINALIZED"`, `result_name: "MAJORITY_AGREE"`, `lifecycle: { state: "finalized", outcome: "accepted" }`, with 3 of 5 validators voting `AGREE` before quorum, and ~99.9% of the fee deposit refunded after settlement.
+Every case reached consensus on chain with independent validator models, in round 0 (no re-proposal needed). The docket demonstrates all three precedent states (sets / follows / departs) and all three verdicts (claimant / respondent / undecided) — the jury is genuinely deciding, not rubber-stamping. Cases can also carry submitted evidence, which the jury weighs and marks as STRONG, WEAK, or IRRELEVANT.
 
 ## Autonomous Agent
 
@@ -64,7 +64,6 @@ A representative agent-filed run (tx `0x4b4af7b4077322fb5f0d9a18067f148c033c9a28
 npm install genlayer-js@rc
 export PRECEDENT_PK=0x... # a funded studio-next test private key
 node agent/agent.mjs
-
 ```
 
 ## Frontend
@@ -72,9 +71,9 @@ node agent/agent.mjs
 The web interface (`index.html`, deployed above) lets anyone with a browser wallet read the docket and file a dispute:
 
 - Wallet connection uses EIP-6963 discovery plus a `window.ethereum` fallback — no WalletConnect, no project ID, no relay dependency.
-- The GenLayer SDK is pinned to `genlayer-js@2.0.0-rc.1`, the exact release that exports the `studioDevnet` chain this contract runs on. `@latest` would silently resolve to an older release that does not know this network.
+- The GenLayer SDK is pinned to `genlayer-js@2.0.0-rc.1`, the exact release that exports the `studioDevnet` chain this contract runs on. `@latest` would silently resolve to an older release that does not know this network. The SDK is loaded through a CDN fallback chain (jsdelivr → esm.sh → unpkg), so a single CDN outage cannot silently break wallet connection.
 - Every write follows the network's fee requirements: fees are estimated via `client.estimateTransactionFees(...)` before every `file_dispute()` call, and the transaction is tracked to `waitUntil: 'finalized'`.
-- The judgment view shows the full record the contract returns, including which precedent (if any) was auto-matched and whether the new ruling was found consistent with it.
+- The judgment view shows the full record the contract returns, including which precedent (if any) was auto-matched, whether the new ruling was found consistent with it, and how the jury assessed any submitted evidence.
 
 ## Known limitations (roadmap, not hidden)
 
@@ -82,6 +81,7 @@ The web interface (`index.html`, deployed above) lets anyone with a browser wall
 - **No cost to filing:** filing a dispute currently has no bond or stake, so there is no economic cost to a bad-faith or spam filing. A future version should require a small bond, forfeited on a frivolous filing.
 - **Verdict consensus mechanism:** the verdict uses `strict_eq`, which requires every validator to independently produce the identical token. This is verified working on real disputes, but on a genuinely close case it can in principle fail to reach consensus rather than resolve by majority. Moving the verdict question to `prompt_comparative` (majority-based agreement) is a planned improvement.
 - **Unreadable jury answers:** if the consistency check returns something unparseable, the case is marked `UNREVIEWED` rather than silently assumed consistent.
+- **Evidence must be readable text, not a link.** The jury reads the evidence string directly — it cannot open URLs or images during consensus. A bare link will typically be assessed as `IRRELEVANT`; a text description of what the evidence shows will be assessed on its actual content.
 
 ## Future roadmap
 
