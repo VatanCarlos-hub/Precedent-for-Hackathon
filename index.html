@@ -91,6 +91,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .holding-text[data-w="UNCLEAR"]{color:var(--unsettled)}
 .reasoning{margin-top:12px;color:var(--ink-soft);max-width:64ch}
 
+.evidence-line{margin-top:18px;padding:14px 18px;border-left:3px solid var(--leaf-edge);background:rgba(0,0,0,.03);font-size:15.5px;color:var(--ink-soft)}
+.evidence-line[data-e="STRONG"]{border-left-color:var(--for);background:rgba(46,96,72,.08)}
+.evidence-line[data-e="WEAK"]{border-left-color:var(--unsettled);background:rgba(138,106,47,.08)}
+.evidence-line[data-e="IRRELEVANT"]{border-left-color:var(--against);background:rgba(155,53,53,.06)}
+.evidence-label{font-family:var(--display);font-size:13px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase}
+
 .citation{margin-top:26px;border-left:3px solid var(--gilt);background:rgba(198,155,84,.09);padding:16px 20px}
 .citation[data-kind="none"]{border-left-color:var(--leaf-edge);background:rgba(0,0,0,.03)}
 .citation[data-kind="contradicts"]{border-left-color:var(--against);background:rgba(155,53,53,.07)}
@@ -233,6 +239,11 @@ footer a{color:rgba(245,242,234,.6)}
       <p class="reasoning" id="jReasoning"></p>
     </div>
 
+    <div class="evidence-line" id="jEvidence">
+      <span class="evidence-label">Evidence</span>
+      <p id="jEvidenceNote"></p>
+    </div>
+
     <div class="citation" id="jCitation">
       <p class="citation-line" id="jCiteLine"></p>
       <p class="citation-note" id="jCiteNote"></p>
@@ -277,6 +288,10 @@ footer a{color:rgba(245,242,234,.6)}
         <div>
           <label for="argR">What the respondent says</label>
           <textarea id="argR" required maxlength="600"></textarea>
+        </div>
+        <div>
+          <label for="evidence">Evidence <span style="color:rgba(245,242,234,.38)">(optional)</span></label>
+          <textarea id="evidence" maxlength="600" placeholder="Describe the proof in words the panel can read, e.g. &quot;the delivered text was 180 words and consisted of image captions.&quot; A bare link cannot be opened by the jury."></textarea>
         </div>
         <button class="btn-file" id="fileBtn" type="submit" disabled>Connect a wallet to file</button>
         <p class="hint">Filing costs a small GEN fee on the devnet, most of which is refunded once the panel settles.</p>
@@ -334,7 +349,7 @@ footer a{color:rgba(245,242,234,.6)}
 import { createClient } from 'https://esm.sh/genlayer-js@2.0.0-rc.1';
 import { studioDevnet } from 'https://esm.sh/genlayer-js@2.0.0-rc.1/chains';
 
-const DEFAULT_CONTRACT = '0xd07061721Cbdc3381EdC48E5c96deF3b820D3900';
+const DEFAULT_CONTRACT = '0x3F7EAb3Ff139BDe2005D5e38c42c8195CDb452c3';
 
 // A reviewer can point this page at their own deployment with
 // ?contract=0x... instead of editing the file. Anything that is not a
@@ -565,7 +580,8 @@ $('fileForm').addEventListener('submit', async e => {
     $('summary').value.trim(),
     $('argC').value.trim(),
     $('argR').value.trim(),
-    String(new Date().getFullYear()),   // the contract has no clock; the caller supplies the year
+    $('evidence').value.trim(),          // evidence (optional); jury weighs it when present
+    String(new Date().getFullYear()),    // the contract has no clock; the caller supplies the year
   ];
 
   clearNotice();
@@ -668,6 +684,12 @@ function showJudgment(r, hash) {
   h.textContent = holding;
   h.dataset.w = verdictState(w);
   $('jReasoning').textContent = r.reasoning || '';
+
+  // evidence line: show the panel's assessment, coloured by strength
+  const ev = $('jEvidence');
+  const strength = r.evidence_strength || 'NONE';
+  ev.dataset.e = strength;
+  $('jEvidenceNote').textContent = r.evidence_note || 'No evidence was submitted with this dispute.';
 
   const cited = r.cited_case_id, cons = r.precedent_consistency;
   const box = $('jCitation'), line = $('jCiteLine'), note = $('jCiteNote');
