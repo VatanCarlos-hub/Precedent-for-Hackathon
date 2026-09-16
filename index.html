@@ -346,8 +346,60 @@ footer a{color:rgba(245,242,234,.6)}
    which does not know this network at all.
    ============================================================ */
 
-import { createClient } from 'https://esm.sh/genlayer-js@2.0.0-rc.1';
-import { studioDevnet } from 'https://esm.sh/genlayer-js@2.0.0-rc.1/chains';
+// SDK loader with automatic CDN fallback.
+// esm.sh has had repeated outages; when its edge fails to serve
+// @scure/bip32 or @scure/bip39, wallet signing dies silently and the
+// "Connect wallet" button appears dead. We try jsdelivr first (much
+// higher uptime for this workload), fall back to esm.sh, then unpkg,
+// so a single CDN outage does not take the whole site down.
+const SDK_MIRRORS = [
+  'https://cdn.jsdelivr.net/npm/genlayer-js@2.0.0-rc.1/+esm',
+  'https://esm.sh/genlayer-js@2.0.0-rc.1',
+  'https://unpkg.com/genlayer-js@2.0.0-rc.1?module',
+];
+const CHAINS_MIRRORS = [
+  'https://cdn.jsdelivr.net/npm/genlayer-js@2.0.0-rc.1/chains/+esm',
+  'https://esm.sh/genlayer-js@2.0.0-rc.1/chains',
+  'https://unpkg.com/genlayer-js@2.0.0-rc.1/chains?module',
+];
+
+async function loadFromAnyMirror(mirrors, label) {
+  let lastErr = null;
+  for (const url of mirrors) {
+    try {
+      const mod = await import(url);
+      console.log('[precedent] loaded', label, 'from', url);
+      return mod;
+    } catch (err) {
+      console.warn('[precedent]', label, 'failed at', url, err?.message || err);
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('all mirrors failed for ' + label);
+}
+
+let createClient, studioDevnet;
+try {
+  const sdkMod    = await loadFromAnyMirror(SDK_MIRRORS,    'genlayer-js');
+  const chainsMod = await loadFromAnyMirror(CHAINS_MIRRORS, 'genlayer-js/chains');
+  createClient   = sdkMod.createClient;
+  studioDevnet   = chainsMod.studioDevnet;
+} catch (err) {
+  // If every mirror is down, we cannot even offer wallet connection.
+  // Tell the user plainly instead of leaving them staring at a dead button.
+  document.addEventListener('DOMContentLoaded', () => {
+    const notice = document.getElementById('notice');
+    if (notice) {
+      document.getElementById('noticeTitle').textContent = 'The court could not open';
+      document.getElementById('noticeBody').textContent  = 'The SDK could not be loaded from any of its mirrors. This is almost always a temporary CDN outage on the network side — reload the page in a minute.';
+      document.getElementById('noticeDetail').textContent = (err && (err.message || String(err))) || '';
+      notice.dataset.open = 'true';
+    }
+    const btn = document.getElementById('walletBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Court offline'; }
+  });
+  throw err;
+}
 
 const DEFAULT_CONTRACT = '0x3F7EAb3Ff139BDe2005D5e38c42c8195CDb452c3';
 
