@@ -29,7 +29,7 @@
 import { createClient, createAccount } from 'genlayer-js';
 import { studioDevnet } from 'genlayer-js/chains';
 
-const CONTRACT_ADDRESS = '0xd07061721Cbdc3381EdC48E5c96deF3b820D3900';
+const CONTRACT_ADDRESS = '0x3F7EAb3Ff139BDe2005D5e38c42c8195CDb452c3';
 
 function resolveChain() {
   console.log('[agent] using official studioDevnet chain (id ' + studioDevnet.id + ')');
